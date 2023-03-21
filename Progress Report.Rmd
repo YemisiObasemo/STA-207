@@ -1,0 +1,626 @@
+---
+title: how the neural activity in the visual cortex  of two mice is modulated by the two stimuli on the left and right Contrast.
+author: "Yemisi Obasemo"
+date: "March 20 2023"
+output:
+  html_document:
+    df_print: paged
+    number_sections: yes
+  word_document: default
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+
+
+
+```{r, include=FALSE}
+library(tidyverse)
+library(car)
+library(pander)
+library(qwraps2)
+library(ggplot2)
+library(gplots)
+library(reactable)
+
+```
+
+
+
+```{r, include=FALSE}
+session=list()
+for(i in 1:5){
+  session[[i]]=readRDS(paste('/Users/emera/Downloads/STA207/Project/session',i,'.rds',sep=''))
+  print(session[[i]]$mouse_name)
+  print(session[[i]]$date_exp)
+  
+}  
+  
+ 
+```
+
+
+
+```{r, include=FALSE}
+# Rename eval=TRUE if you want the output to appear in the report.
+# Take the 11th trial in Session 1 for example
+id=11
+session[[1]]$feedback_type[id]
+session[[1]]$contrast_left[id]
+session[[1]]$contrast_right[id]
+length(session[[1]]$time[[id]])
+dim(session[[1]]$spks[[id]])
+
+```
+
+
+
+```{r, include = FALSE}
+# Obtain the firing rate 
+# averaged over [0,0.4] seconds since stim onsets
+# averaged across all neurons 
+data1 = data.frame('firingrate' = NA , 'session' = NA , 'contrast_left' = NA , 'contrast_right' = NA, 'feedback_type' = NA)
+for(ID in 1:5){
+t=0.4 # from Background 
+
+n.trials=length(session[[ID]]$spks)
+n.neurons=dim(session[[ID]]$spks[[1]])[1]
+
+# Obtain the firing rate 
+firingrate=numeric(n.trials)
+for(i in 1:n.trials){
+  firingrate[i]=sum(session[[ID]]$spks[[i]])/n.neurons/t
+} 
+session1 = rep(ID,length(firingrate))
+contrast_left1 = as.factor(session[[ID]]$contrast_left)
+contrast_right1 = as.factor(session[[ID]]$contrast_right)
+feedback_type1 = as.factor(session[[ID]]$feedback_type)
+
+data2 = cbind(firingrate, session1, contrast_left1 , contrast_right1, feedback_type1 )
+colnames(data2) = c('firingrate' , 'session' , 'contrast_left' , 'contrast_right' , 'feedback_type')
+data1 = rbind(data1, data2) %>%as.data.frame()
+
+}
+#data1 = data1[2:nrow(data1)[1],]
+
+mice_data = data1[complete.cases(data1),]
+
+
+mice_data$firingrate = as.numeric(mice_data$firingrate)
+mice_data$contrast_left = as.factor(mice_data$contrast_left)
+mice_data$contrast_right = as.factor(mice_data$contrast_right)
+mice_data$feedback_type = as.factor(mice_data$feedback_type)
+mice_data$session = as.factor(mice_data$session)
+
+
+```
+
+
+
+```{r,include=FALSE}
+# update the variable data types
+
+sessionone = mice_data[mice_data$session ==1, ]
+session2 = mice_data[mice_data$session ==1, ]
+session3 = mice_data[mice_data$session ==1, ]
+session4 = mice_data[mice_data$session ==1, ]
+session5= mice_data[mice_data$session ==1, ]
+```
+
+
+
+```{r, include = FALSE}
+
+library(lme4)
+library(tidyr)
+
+fit.full <- lmer(firingrate ~ (contrast_left) * (contrast_right) + (1 | session), 
+                 data = mice_data)
+anova.fit = anova(fit.full)
+anova.fit
+
+fit.red<- lmer(firingrate ~ (contrast_left) + (contrast_right) + (1 | session), 
+                 data = mice_data)
+
+anova.red = anova(fit.red)
+anova.red
+
+
+anova(fit.full, fit.red)
+```
+
+
+
+# Abstract 
+We studied and analyzed the subset of data collected by Steinmetz et al. (2019) via an two-way mixed effect model.In this project we only use five sessions (Sessions 1 to 5) from two mice (Cori and Frossman). The objectives of this project is to understand how the neural activity in the visual cortex is modulated by the two stimuli and how this information can be utilized to predict the outcome of the trial.There are disparity in spikes across neurons  within a given time in the data set. Hence, We used the mean of spikes per second across all neurons within a given 0.4 seconds time interval as the statistics to represent the response variable. The neural activity on the left contrast and right contrast were determined to significantly impact the firing rate of the two mice. Each session contains varying numbers of neurons, we account for this randomness across sessions by adding a random intercept into our model.Hence we fit an two-way mixed effect model to accommodate the random intercept and address our questions of interest.
+
+
+# Introduction
+Data were collected for the contrast of the left stimulus, contrast of the right stimulus, numbers of spikes of neurons in the visual cortex in time bins defined in time, type of the feedback in an experimental study. In this project, we investigated how the neural activity in the visual cortex is modulated by the two stimuli and how this information can be utilized to predict the outcome of the trial. Our first question of interest is determine how neurons in the visual cortex respond to the stimuli presented on the left and right and also how to predict the outcome of each trial using the neural activities. The results of this analysis can help Scientist  and researchers to determine which factors significantly impact the firing rate of this two mice and how they respond to stimuli and further enhance thier research work.
+
+ 
+# Background 
+The data used for this project was gotten from the study conducted by Steinmetz et al. (2019), experiments were performed on a total of 10 mice over 39 sessions. we only use five sessions (Sessions 1 to 5) from two mice (Cori and Frossman). mice Cori in the first three session and mice Frossman in the last two sessions. in this project. Each session comprised several hundred trials, during which visual stimuli were randomly presented to the mouse on two screens positioned on both sides of it. The stimuli varied in terms of contrast levels, which took values in {0, 0.25, 0.5, 1}, with 0 indicating the absence of a stimulus. The mice were required to make decisions based on the visual stimuli, using a wheel controlled by their forepaws. A reward or penalty was subsequently administered based on the outcome of their decisions. The activity of the neurons in the mice’s visual cortex was recorded during the trials and made available in the form of spike trains, which are collections of time stamps corresponding to neuron firing. In this data analysis, We use the mean of spikes per second across all neurons within a given 0.4 seconds time interval as the statistics to represent the response variable.
+
+
+
+#Descriptive analysis.
+
+We explored the dataset and generate summary statistics and plots for the variables.
+
+There are disparity in spikes acroos neurons  within a given time in the data set.
+Hence, We used the mean of spikes per second across all neurons within a given 0.4 seconds time interval as the statistics to represent the response variable because it gave us a better knowledge and representation of the data, there are no serious outlires that can skew the data to the right or to the left and  the normality assumptions were not violated.
+
+The mean of spikes per second  across all neurons within a given 0.4 seconds time interval can be calculated as
+
+$$Firing\; rate = \frac{Total\;  number\;  of\;  spikes\;  in \; a \; given\;  time } {number\;  of\;  neurones\;  X   length\;  of \;  period \; of \; time  }   $$
+
+
+
+Below is a table showing a part of the data .
+```{r, echo=FALSE, comment='' , warning=FALSE, message = FALSE}
+
+reactable(head(mice_data))
+
+```
+
+
+
+
+
+#Summary Statistics
+
+we obtained summary statistics of these measurements and obtained its boxplot.
+
+```{r, results = 'asis', echo=FALSE}
+options(qwraps2_markup = "markdown")
+our_summary <-
+  list("Firingrate" =
+       list("min"       = ~ min(mice_data$firingrate),
+            "max"       = ~ max(mice_data$firingrate),
+            "mean (sd)" = ~ qwraps2::mean_sd(mice_data$firingrate))
+       )
+
+
+output_summary <- qwraps2::summary_table(dplyr::group_by(mice_data, mice_data$session), our_summary)
+
+
+reactable(head(output_summary))
+
+```
+
+Summary Table for firing
+There are  (N = 214) data point in the first session, (N = 251) in the second session,(N = 228) in the third session, (N = 249) in the fourth session and (N = 254) in the fith session. The summary table show the minimum, maximum and standard deviation of the firing rate in each session.
+
+
+
+
+contrast_left
+-----------------------------
+   1       2     3       4         
+------- ------ ------ -------  
+  591      189    192    224            
+------------------------------
+
+Table for Contrast left
+
+The stimuli varied in terms of left contrast levels, which took values in {0, 0.25, 0.5, 1}.The table above shows values for each contrast level on the left across the 5 session
+
+
+
+
+
+
+-----------------------------
+   1       2     3       4         
+------- ------ ------ -------  
+  522      195    192    287            
+------------------------------
+
+Table for Contrast right
+
+The stimuli varied in terms of right contrast levels, which took values in {0, 0.25, 0.5, 1}.The table above shows values for each contrast level on the left across the 5 session
+
+
+
+number of feedback factors in each session
+-------------------------------------------
+      1      2       3     4        5    
+--  ----- ------ ------ ------ ----------- 
+*1*   73     92     77     83      86
+*-1*  141    159    151    166     168
+-------------------------------------------
+ 
+This table above shows number of data point in each feedback types across sessions
+
+
+
+*Plots*
+
+
+```{r, echo=FALSE, comment= FALSE , warning=FALSE, message = FALSE}
+mice_data$session = as.factor(mice_data$session) 
+
+ggplot(mice_data, aes(x = firingrate, colour = session, fill= session))  + geom_density(alpha = 0.5)
+
+
+```
+
+We plot the distribution of firing rate for each session, we can see that the distributions are similar across the five sessions and it is roughly symmetric.
+
+To better understand the distribution of the firing rate of the mice in contrast of the left and right stimulus across session.
+we obtained its box plot. 
+```{r, echo=FALSE, comment= FALSE , warning=FALSE, message = FALSE}
+par(mfrow= c(1,1))
+mice_data$session = as.factor(mice_data$session) 
+
+ggplot(mice_data, aes(x = contrast_right, y= firingrate, colour = session, fill= session))  + geom_boxplot(alpha = 0.5)
+
+ggplot(mice_data, aes(x = contrast_left, y= firingrate, colour = session, fill= session))  + geom_boxplot(alpha = 0.5)
+
+
+```
+
+
+
+In the boxplot,it can be noted mice Frossman in the fifth session has the lowest average mean firing rate across contrast on the left. Also, the distribution of the firing rate across each session in the left contrast  is roughly symmetric. We see that  mice Cori in  the first three session has larger firing rate and mice Frossman in the last two session has a lesser firing rate. We also see that the distribution of firing rate across each sessions in the contrast on the left each are similar.
+
+similarly, it can be noted mice Frossman in the fifth session has the lowest average mean firing rate across contrast on the right. Also, the distribution of the firing rate across each session in the right contrast  is roughly symmetric. We see that  mice Cori in the first three session has larger firing rate and mice Frossman in the last two session has a lesser firing rate. We also see that the distribution of firing rate across each sessions in the contrast on the right each are similar.
+
+
+```{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+par(mfrow=c(2,3))
+# Main effect plot for contrast_left across sessions
+
+plotmeans(firingrate~contrast_left,data=sessionone ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_left session 1",cex.lab=1.5) 
+# Main effect plot for contrast_left across sessions
+plotmeans(firingrate~contrast_left,data=session2 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_left session2",cex.lab=1.5)
+# Main effect plot for contrast_left across sessions
+plotmeans(firingrate~contrast_left,data=session3 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_left Session3",cex.lab=1.5) 
+
+# Main effect plot for contrast_left across sessions
+plotmeans(firingrate~contrast_left,data=session4 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_left Session4",cex.lab=1.5) 
+# Main effect plot for contrast_left across sessions
+plotmeans(firingrate~contrast_left,data=session5 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_left session5",cex.lab=1.5) 
+
+```
+
+There are apparent difference in firing rate across each session in the contrast on the left. The second contrast level has the lowest variability across the sessions and the fourth contrast level has the highest variability across the five sessions.
+
+The second contrast level(0.25) showed their first response to stimuli, the low variability can mean that the mices are already getting tired at this point hence the low variability.
+
+
+
+```{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+par(mfrow=c(2,3))
+# Main effect plot for contrast_left across sessions
+
+plotmeans(firingrate~contrast_right,data=sessionone ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_right session 1",cex.lab=1.5) 
+# Main effect plot for contrast_right across sessions
+plotmeans(firingrate~contrast_right,data=session2 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_right  session2",cex.lab=1.5)
+# Main effect plot for contrast_right across sessions
+plotmeans(firingrate~contrast_right,data=session3 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_right Session3",cex.lab=1.5) 
+
+# Main effect plot for contrast_right across sessions
+plotmeans(firingrate~contrast_right,data=session4 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_right Session4",cex.lab=1.5) 
+# Main effect plot for contrast_right across sessions
+plotmeans(firingrate~contrast_left,data=session5 ,xlab="contrast_left ",ylab="firingrate",
+          main="Main  effect, contrast_right session5",cex.lab=1.5) 
+
+```
+
+
+Similarly, There are apparent difference in firing rate across each session in the contrast on the right. The second contrast level has the lowest variability across the sessions and the fourth contrast level has the highest variability across the five sessions.
+
+The second contrast level(0.25) showed their first response to stimuli, the low variability can mean that the mices are already getting tired at this point hence the low variability.
+
+
+
+
+
+*Inferential analysis*
+
+we would like to know if the left and right stimuli have additive effects on the neural responses (i.e., whether the interaction effect exists).
+
+We have different sessions and different mice, which can contribute to randomness in each sessions, we would account for this randomness by adding session as a random factor into the model.
+We also have fixed effects.Hence, we will use a two-way mixed effect model to fit the data. 
+
+
+In the mixed effect model,the two fixed-effect factors are left contrast and right contrast, and a random intercept is included for each session.
+The response firing rate is a numerical variable while the left contrast, right contrast, and a random intercept are factors variable
+
+
+
+
+The model is defined as, 
+$$Y_{ijkl} =\mu_{\cdot\cdot\cdot} + \alpha_i +\beta_j + \gamma_k + (\alpha\beta)_{ij}+\epsilon_{ijkl} $$
+
+where the index i represents the left contrast levels: 0 (i = 1) , 0.25(i = 2), 0.5(i = 3) , 1(i = 4). The index j represents the right contrast levels :0 (j = 1) , 0.25 (j = 2), 0.5(j = 3) , 1(j = 4). The index k represent sessions : 1 (k = 1) , 2(k= 2), 3 (k = 3) , 4 (k = 4) and 5 (k = 5).
+
+$\mu_{\cdot\cdot\cdot}$ represent the population mean of all firing rate acroos different left and right contrast levels and sessions.
+
+$\alpha_i$ represents the effect of left contrast on firing rate.
+$\beta_j$ represents the effect of right contrast on firing rate.
+$\gamma_k$ represents the effect of session on firing rate.
+$\epsilon_{ijkl}$ represent  the variability in data not explained by left, right contrast and the random intercept.
+
+The assumptions of the model are
+
+(i) $\sum\alpha_i$ = $\sum\beta_j = 0$ 
+
+(ii) $\gamma_k$ are i.i.d. $N(0,\sigma_{\gamma}^2)$
+
+(iii) $\sum_i(\alpha\beta)_{ij} = 0$ for any j
+
+(iv)$(\alpha\beta)_{ij}\sim N(0,(1-1/a)\sigma^2_{\alpha\beta})$
+
+(v) ${\rm cov}( (\alpha\beta)_{ij}, (\alpha\beta)_{i'j})= - \sigma^2_{\alpha\beta}/a$
+
+(vi)${\rm cov}( (\alpha\beta)_{ij}, (\alpha\beta)_{i'j})=0$, if $i\neq i'$ and $\neq j'$
+
+(vii)$\epsilon_{ijkl}$ are i.i.d $N(0, \sigma^2)$ and (vii) ${\beta_j}$ $\{(\alpha\beta)_{ij}\}$, $\{\epsilon_{ijkl}\}$ are mutually independent.
+
+
+
+We will fit a full model with interaction terms and a reduced model with no interaction terms 
+
+
+```{r, echo=FALSE, comment=FALSE, warning=FALSE, message = FALSE}
+
+library(lme4)
+library(tidyr)
+
+fit.full <- lmer(firingrate ~ (contrast_left) *(contrast_right) + (1 | session), 
+                 data = mice_data)
+anova.fit = anova(fit.full)
+reactable(anova.fit)
+
+```
+Table: Fitting two-way mixed effect  model: firingrate ~ (contrast_left) *(contrast_right) + (1 | session)
+
+The Table shows the Fvalues,Sum of square error and the mean square error.
+
+
+WE don't really care about the coefficient because we are not necessarily trying to make inference here. However we would report only the intercept
+
+The Estimate of the intercept is 2.64405, the Std. Error is 0.50456 t value is 5.240`
+
+WE fit a reduced model 
+
+```{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+
+fit.red<- lmer(firingrate ~ (contrast_left) + (contrast_right) + (1 | session), 
+                 data = mice_data)
+
+anova.red = anova(fit.red)
+reactable(anova.red)
+```
+Table: Fitting two-way mixed effect  model:(contrast_left) + (contrast_right) + (1 | session)
+
+We conduct a likelihood ratio test to see which model better answer our question of interest.
+
+
+
+```{r,include=FALSE}
+
+anova(fit.full, fit.red) #likelihood ratio test
+```
+
+
+----------------------------------------------------------------------------------------
+       &nbsp;          npar      AIC      BIC    loglik  deviance Chisq   DF Pr(>chisq)  
+------------------- ---------- -------- -------- ------   ------ -------- ----  -------
+fittedreduced       9         2349.3    2395.1  -1165.7   2331.3    3 
+
+fittedfull          18        2349.8    2441.3  -1156.9   2313.8 17.524    9    0.04112*
+----------------------------------------------------------------------------------------
+
+Models:
+fit.red: firingrate ~ (contrast_left) + (contrast_right) + (1 | session)
+fit.full: firingrate ~ (contrast_left) * (contrast_right) + (1 | session)
+
+
+
+
+Our question of interest is that we would like to know if the left and right stimuli have additive effects on the neural responses (i.e., whether the interaction effect exists).
+
+We can see that the full model that contains the interaction effect has a pvalue of  0.04112 which is signficant at $\alpha = 0.05$ .
+
+Hence we can conclude that the left and right stimuli have additive effects on the neural responses
+
+
+- Sensitivity analysis (Q1). We would conduct a model diagnostics and/or sensitivity analysis. In addition to the regular diagnostics, you should examine whether one need to account for the random effects from sessions. You may also explore using other statistics as 
+
+1. Residual plots
+
+The purpose is to check if there are any systematic patterns left in the residuals.
+
+
+
+``````{r, echo=FALSE, comment=FALSE, warning=FALSE, message = FALSE}
+par(mfrow=c(1,2))
+plot(fit.full)
+
+```
+
+We can see that the point of the residuals are scattered across the fitted line.
+
+Pearson residuals and deviance residuals
+
+``````{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+par(mfrow = c(2, 1))
+res.P = residuals(fit.full, type = "pearson")
+res.D = residuals(fit.full, type = "deviance")
+boxplot(cbind(res.P, res.D), names = c("Pearson", "Deviance"))
+```
+
+The boxplots show similar distributions of the two types of residuals,Hence, no lack-of-fit is provided. There are are few outliers which do not neccessarily affect the overall outcome of the model
+
+
+
+```{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+library(car)
+full_residuals = residuals(object = fit.full)
+par(mfrow = c(2,1))
+qqnorm(full_residuals)
+qqline(full_residuals , col = 'red')
+hist(full_residuals)
+qqnorm(ranef(fit.full)$session[,"(Intercept)"], 
+       main = "Random effects")
+qqline(ranef(fit.full)$session[,"(Intercept)"], 
+       main = "Random effects")
+
+```
+
+Shapiro Test
+
+
+---------------------------
+  W         p-value    
+------      ------------  
+0.98518     1.105e-09   
+-------------------------
+                 
+The normality assumption was also satisfied for the final model. In the quantile-quantile plot of the standardized residuals,
+the residuals followed a roughly normal distribution and were slightly right light-tailed. Furthermore, the Shapiro-Wilk normality test was used to test for the normality of the residuals using a significance level of 0.05. The null hypothesis of this test was the residuals are normally distributed and the alternative hypothesis was the residuals are not
+normally distributed. The p-value from this test was 1.105e-09, which means that we do not have sufficient evidence to reject the null hypothesis. This led us to concluding that the residuals are normally distributed.
+
+
+```{r, include = FALSE}
+library(car)
+leveneTest(firingrate ~ contrast_left*contrast_right, 
+                 data = mice_data)
+
+```
+
+
+Levene's Test for Homogeneity of Variance
+-------------------------------------------
+                  Df      F value   Pr(>F) 
+--------------- ----   --------    --------
+contrast_right    15      1.1168    0.3356
+                1180      NA       NA
+-------------------------------------------
+
+Table: Levene's Test for Homogeneity of Variance                 
+                 
+The pvalue from the levene’s test is 0.3356 which is more  than 0.05 level of significance. This indicates equal variances of error terms. we can say that the variations in the different occupations are homogeneous.       
+
+2. How to predict the outcome of each trial using the neural activities and stimuli? (5 pts)
+
+
+We want to get the model with the best prediction performance. Here the prediction performance is evaluated by the sensitivity and specificity evaluated on the first 100 trials in Session 1.
+
+we split the data set into testing and training data,We are evaluating on the first 100 100 trials in session 1. We then make Session 1 the reference class since it contains what we are evaluating on. session becomes the testing data and the rest of the data becomes the training data.
+
+we fit two model(one with interaction and the other without) to see which one significantly perfoms better
+
+```{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+ #Splitting dataset
+library(caTools)
+mice.test = sessionone
+mice.train = mice_data[mice_data$session !=1, ]
+full.train = glm(feedback_type ~contrast_left * contrast_right + firingrate,
+                   family = binomial(), data = mice.train)
+red.train = glm(feedback_type ~contrast_left + contrast_right, family = binomial(), data = mice.train)
+anova(red.train,full.train, test = 'Chi')
+
+reactable(anova(red.train,full.train, test = 'Chi'))
+
+```
+
+Models:
+Model 1: feedback_type ~ contrast_left + contrast_right
+Model 2: feedback_type ~ contrast_left * contrast_right + firingrate
+
+The full model signficantly performs better than the reduced model, hence interaction term is needed
+
+Session 1 is not included because it is the reference class.
+
+```{r, echo=FALSE, comment=FALSE , warning=FALSE, message = FALSE}
+ library(pROC)
+full.train = glm(feedback_type ~contrast_left * contrast_right + firingrate,
+                   family = binomial(), data = mice.train)
+train.roc =roc(full.train$y, full.train$fitted.values)
+train.roc$auc
+plot(train.roc)
+
+```
+
+Area under the curve: 0.6542
+
+We then go ahead to fit two model with interaction terms,then compare their sensitivity and specificity to determine the model with the best prediction performance.
+`
+Model 1 : feedback_type ~contrast_left * contrast_right , firingrate + session,
+                   family = binomial(), data = mice.train)
+
+-------------------------------------------
+                     actual_values 
+predicted_values        -1         1     
+                 -1     67        17
+                  1     54        95
+-------------------------------------------
+We use the auc as the threshold.
+
+Based on the confusion matrix, we have
+
+Sensitivity(True positive Rate) = TP/(TP+FN) =95/112 =0.85
+
+specificity(True negative rate) = TN/(TN +FP) =67/121 = 0.55
+
+
+Second Model 
+Model 2 : feedback_type ~firingrate + contrast_left * contrast_right,
+                   family = binomial(), data = mice.train)
+
+-------------------------------------------
+                       actual_values 
+predicted_values        1         -1     
+                 -1     18        30
+                  1     55        111
+-------------------------------------------
+
+Then Comparing the the sensitivity and specificity, the full model with firing rate seems to be a better predictice model.
+
+
+Based on the confusion matrix, we have 
+
+Sensitivity(True positive Rate) = TP/(TP+FN) =111/141 = 0.78 
+
+specificity(True negative rate) = TN/(TN +FP) = 18/ 73 = 0.24
+
+The pick the model with the higher Sensitivity , which then becomes our predictive model
+
+The  Predictive modeling  
+$${\rm logit}P_i(y)= \beta_0 + \beta_1X_i + \sum_{j=2}^{4}(\beta_{2j} X_{_2j}+ \beta_{3j} X_{_3j} )  + \sum_{k=2}^{5}\beta_{4k} X_{4k}$$
+Where $X_i$ is the Firingrate, $X_2$ is the left contrast, $X_3$ is the right constrast,
+$X_4$ is the session, y is the feedback and k = (2.3,4,5), and j = (2,3,4). $\Beta_0$ is the intercept.we excluded the first session.
+
+
+# Discussion 
+
+The aim of this project was to determine how the neural activity in the visual cortex is modulated by the two stimuli and how this information can be utilized to predict the outcome of the trial from two-way mixed effect model, Hence we can conclude that the left and right stimuli have additive effects on the neural response
+
+
+
+
+
+
+# Reference {-}
+
+
+Steinmetz, N.A., Zatka-Haas, P., Carandini, M. et al. Distributed coding of choice, action and engagement across the mouse brain. Nature 576, 266–273 (2019). https://doi.org/10.1038/s41586-019-1787-x
+
+
+I spoke to some of my classmate and used the materials from the lectures and discussion
